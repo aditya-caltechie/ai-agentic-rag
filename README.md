@@ -1,6 +1,6 @@
 # Agentic-RAG
 
-[![CI](https://github.com/aditya-caltechie/ai-ragchain/workflows/CI/badge.svg)](https://github.com/aditya-caltechie/ai-ragchain/actions)
+[![CI](https://github.com/aditya-caltechie/ai-agentic-rag/workflows/CI/badge.svg)](https://github.com/aditya-caltechie/ai-agentic-rag/actions)
 
 Your local Agentic RAG stack — no APIs, no cloud, full control.
 
