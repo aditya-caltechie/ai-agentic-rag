@@ -66,12 +66,3 @@ The system uses **adaptive retrieval** with 4 LLM call points:
 
 See [docs/llm-architecture-flow.md](docs/llm-architecture-flow.md) for detailed flow and [AGENTS.md](AGENTS.md) for full architecture.
 
-## Intent-Based Retrieval
-
-The `ragchain ask` command adapts to query type:
-
-| Type | Example | Strategy |
-|---|---|---|
-| FACT | "Top 10 languages?" | Keyword-heavy for lists |
-| CONCEPT | "What is functional programming?" | Balanced search |
-| COMPARISON | "Compare Go and Rust" | Semantic-focused |
