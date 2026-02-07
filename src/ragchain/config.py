@@ -21,7 +21,7 @@ class Config:
 
         # Vector store configuration
         self.chroma_persist_directory: str = os.environ.get("CHROMA_PERSIST_DIRECTORY", "./chroma_data")
-        self.chroma_server_url: str = os.environ.get("CHROMA_SERVER_URL", "http://localhost:8000")
+        self.chroma_server_url: str = os.environ.get("CHROMA_SERVER_URL", "")
 
         # Ollama configuration
         # We use qwen3-embedding:4b for embeddings and qwen3:8b for generation
