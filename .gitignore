@@ -1,0 +1,18 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Persisted wikipedia pages
+wikipages/
+
+# Personal artifacts
+brainstorm/
+chroma_data/
+.DS_Store

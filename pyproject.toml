@@ -1,0 +1,57 @@
+[project]
+name = "ragchain"
+version = "0.1.0"
+description = "RAG pipeline scaffold"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "langchain>=1.0.0",
+  "langchain-community>=0.1.0",
+  "langchain-ollama>=0.1.0",
+  "langchain-chroma>=0.1.0",
+  "langgraph>=0.0.1",
+  "chromadb>=0.4.0",
+  "click>=8.1",
+  "pydantic-settings>=2.0.0",
+  "aiohttp>=3.8",
+  "beautifulsoup4>=4.12",
+  "wikipedia>=1.4",
+  "rank-bm25>=0.2.0",
+]
+
+[dependency-groups]
+dev = [
+  "aioresponses>=0.7.8",
+  "pytest>=9.0.2",
+  "pytest-asyncio>=1.3.0",
+  "ruff>=0.12.0",
+  "mypy>=1.10",
+]
+
+[build-system]
+requires = ["setuptools>=65.5", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[project.scripts]
+ragchain = "ragchain.cli:cli"
+
+[tool.ruff]
+line-length = 160
+
+[tool.ruff.lint]
+select = ["E", "F", "UP", "B", "I"]
+extend-ignore = ["E203", "E501"]
+
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
+follow_imports = "silent"
+warn_unused_ignores = true
+
+[tool.pytest.ini_options]
+markers = [
+  "integration: marks tests as integration tests (deselect with '-m \"not integration\"')",
+]

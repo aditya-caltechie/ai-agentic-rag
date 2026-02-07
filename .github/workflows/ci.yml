@@ -1,0 +1,116 @@
+name: CI
+
+on:
+  push:
+    branches: [main, refactor]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12"]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install dependencies (locked)
+        run: uv sync --frozen
+
+      - name: Syntax check (compileall)
+        run: uv run python -m compileall -q src
+
+      - name: Lint with Ruff
+        run: uv run ruff check src tests
+
+      - name: Format check with Ruff
+        run: uv run ruff format --check src tests
+
+      - name: Type check with mypy
+        run: uv run mypy src
+        continue-on-error: true  # Don't fail CI on type errors (for now)
+
+      - name: CLI help smoke test
+        run: uv run ragchain --help
+
+      - name: Run unit tests
+        run: uv run pytest -q -m "not integration"
+
+      - name: Run unit tests with coverage
+        run: uv run pytest --cov=ragchain --cov-report=term-missing -m "not integration"
+        continue-on-error: true  # Don't fail CI if coverage not configured
+
+  integration-tests:
+    runs-on: ubuntu-latest
+    # Integration tests are optional and require external services
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12"]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install dependencies (locked)
+        run: uv sync --frozen
+
+      - name: Start Chroma service
+        run: docker compose up -d chroma
+
+      - name: Wait for Chroma to be ready
+        run: |
+          echo "Waiting for Chroma to be ready..."
+          for i in {1..30}; do
+            if docker compose ps chroma | grep -q "healthy"; then
+              echo "Chroma is healthy!"
+              exit 0
+            fi
+            echo "Attempt $i/30: Chroma not ready yet, waiting 2s..."
+            sleep 2
+          done
+          echo "Timeout waiting for Chroma to be healthy"
+          docker compose logs chroma
+          exit 1
+
+      - name: Run integration tests
+        run: uv run pytest -q -m integration
+        env:
+          CHROMA_SERVER_URL: http://localhost:8000
+
+      - name: Stop services
+        if: always()
+        run: docker compose down

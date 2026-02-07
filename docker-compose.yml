@@ -1,0 +1,16 @@
+services:
+  chroma:
+    image: chromadb/chroma:latest
+    ports:
+      - "8000:8000"
+    volumes:
+      - chroma_demo_data:/data
+    healthcheck:
+      # https://cookbook.chromadb.dev/running/health-checks/#docker-compose
+      test: [ "CMD", "/bin/bash", "-c", "cat < /dev/null > /dev/tcp/localhost/8000" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  chroma_demo_data:
