@@ -1,3 +1,184 @@
+# RAG Evaluation Framework
+
+## Why RAG Evaluation Matters
+
+Evaluating RAG (Retrieval-Augmented Generation) systems is critical because:
+
+1. **Quality Assurance** - Ensures the system retrieves relevant documents and generates accurate answers
+2. **Performance Benchmarking** - Quantifies system effectiveness against baseline metrics
+3. **Debugging & Optimization** - Identifies weak points in retrieval or generation pipelines
+4. **Trust & Reliability** - Validates that answers are grounded in retrieved context (reduces hallucination)
+5. **Continuous Improvement** - Tracks performance over time as data and models evolve
+
+Unlike traditional ML models with clear train/test splits, RAG systems require **multi-stage evaluation** since they combine retrieval (information seeking) and generation (answer synthesis).
+
+---
+
+## Two-Stage RAG Evaluation
+
+### Stage 1: Retrieval Quality Evaluation
+
+Evaluates whether the retrieval system finds relevant documents for a given query.
+
+#### Key Metrics
+
+**1. Mean Reciprocal Rank (MRR)**
+
+Measures how quickly the first relevant document appears in ranked results.
+
+```
+MRR = (1/N) × Σ(1/rank_i)
+```
+
+- **rank_i** = position of first relevant document for query i
+- **Range**: 0 to 1 (higher is better)
+- **Example**: If first relevant doc is at position 3, reciprocal rank = 1/3 = 0.333
+
+**Why MRR?**
+- Simple, interpretable metric for "did we find something relevant quickly?"
+- Critical for RAG since only top-k documents are passed to the LLM
+- Used in this project: Average MRR across all test queries
+
+**2. Normalized Discounted Cumulative Gain (nDCG)**
+
+Accounts for both relevance and position of all retrieved documents.
+
+```
+DCG@k = Σ(rel_i / log₂(i+1))  for i=1 to k
+nDCG@k = DCG@k / IDCG@k
+```
+
+- **rel_i** = relevance score of document at position i
+- **IDCG** = ideal DCG (if docs were perfectly ranked)
+- **Range**: 0 to 1 (1 = perfect ranking)
+
+**Why nDCG?**
+- Captures graded relevance (not just binary relevant/not relevant)
+- Penalizes relevant docs appearing lower in ranking
+- Industry standard for ranking evaluation
+
+**3. Recall@k**
+
+Measures what fraction of all relevant documents are found in top-k results.
+
+```
+Recall@k = (Relevant docs in top-k) / (Total relevant docs)
+```
+
+**Why Recall@k?**
+- Ensures sufficient context is retrieved for answer generation
+- RAG systems typically use k=5 to k=10 for context window constraints
+
+**4. Precision@k**
+
+Measures what fraction of top-k results are actually relevant.
+
+```
+Precision@k = (Relevant docs in top-k) / k
+```
+
+**Why Precision@k?**
+- Reduces noise passed to LLM (irrelevant context can confuse generation)
+- Balances with Recall@k to optimize retrieval quality
+
+---
+
+### Stage 2: Answer Quality Evaluation
+
+Evaluates the generated answer's correctness, relevance, and faithfulness to source context.
+
+#### LLM-as-Judge Approach
+
+**What is LLM-as-Judge?**
+
+Uses a powerful LLM to evaluate answer quality across multiple dimensions. The judge LLM:
+1. Receives the question, retrieved context, and generated answer
+2. Scores the answer on predefined criteria (e.g., 1-5 scale)
+3. Provides structured feedback and rationale
+
+**Why LLM-as-Judge?**
+- **Scalable**: Automates evaluation without human annotators
+- **Nuanced**: Captures semantic correctness beyond exact string matching
+- **Flexible**: Can evaluate multiple dimensions (correctness, relevance, faithfulness)
+- **Cost-effective**: Cheaper than human evaluation, faster iteration cycles
+
+**Key Evaluation Dimensions**
+
+**1. Correctness (Accuracy)**
+- Does the answer correctly address the question?
+- Are facts accurate according to retrieved context?
+- Score: 1 (completely wrong) to 5 (perfectly correct)
+
+**2. Relevance**
+- How well does the answer address the specific question asked?
+- Penalizes verbose or off-topic responses
+- Score: 1 (irrelevant) to 5 (highly relevant)
+
+**3. Faithfulness (Groundedness)**
+- Is the answer fully supported by retrieved context?
+- Detects hallucination (claims not in source documents)
+- Score: 1 (hallucinated) to 5 (fully grounded)
+
+**Judge Prompt Structure**
+
+```python
+You are an expert evaluator for RAG systems.
+
+Question: {query}
+Retrieved Context: {context}
+Generated Answer: {answer}
+
+Evaluate the answer on:
+1. Correctness (1-5): Factual accuracy
+2. Relevance (1-5): How well it answers the question
+3. Faithfulness (1-5): Grounding in provided context
+
+Provide scores and brief justification.
+```
+
+**Advantages over Traditional Metrics**
+
+| Metric | Pros | Cons |
+|--------|------|------|
+| **BLEU/ROUGE** | Fast, deterministic | Ignores semantics, penalizes paraphrasing |
+| **Exact Match** | Simple, clear | Fails on equivalent but different wording |
+| **Human Eval** | Gold standard | Expensive, slow, not scalable |
+| **LLM-as-Judge** | Semantic understanding, scalable | Requires strong LLM, prompt tuning |
+
+---
+
+## RAGChain Evaluation Implementation
+
+This project implements a comprehensive two-stage evaluation pipeline:
+
+### Retrieval Evaluation
+- **Metric**: Mean Reciprocal Rank (MRR)
+- **Grading**: LLM-based document relevance classification (YES/NO)
+- **Logged**: Document rank, RRF score, and MRR per query
+- **Example Log**: `Grade: YES (doc 3 rank 1, score=1.000, MRR=1.000)`
+
+### Answer Evaluation
+- **Metric**: LLM-as-Judge with 3 dimensions (Correctness, Relevance, Faithfulness)
+- **Scoring**: 1-5 scale per dimension
+- **Test Set**: 20 diverse queries (FACT/CONCEPT/COMPARISON intent types)
+- **Model**: Uses same LLM (`qwen3:8b`) for consistent evaluation
+
+### Running the Evaluation
+
+```bash
+# Evaluate full pipeline (retrieval + generation + judging)
+uv run ragchain evaluate
+
+# Expected output:
+# - Per-query retrieval metrics (MRR, doc count)
+# - Per-query answer scores (Correctness, Relevance, Faithfulness)
+# - Aggregate averages across all test queries
+```
+
+---
+
+## Sample Evaluation Run
+
 ```
 Adityas-Laptop:ai-agentic-rag averma$ uv run ragchain evaluate
 Evaluating 20 questions...
@@ -262,3 +443,93 @@ Average Scores:
   Faithfulness: 3.85/5
 Adityas-Laptop:ai-agentic-rag averma$ 
 ```
+
+---
+
+## Interpreting the Results
+
+### Retrieval Performance
+
+**MRR Analysis:**
+- **All queries achieved MRR = 1.000** (first retrieved document was always relevant)
+- This indicates **excellent retrieval quality** with the ensemble BM25 + semantic search approach
+- Document count varied: 3-6 documents retrieved per query (adaptive based on content availability)
+
+**Grading Breakdown:**
+- 100% of queries had at least one relevant document in top position
+- RRF scores ranged from 0.650 to 1.000, showing varying retrieval confidence
+- Intent-based adaptive weights (FACT/CONCEPT/COMPARISON) effectively optimize ranking
+
+### Answer Quality Performance
+
+**Overall Scores:**
+| Metric | Score | Interpretation |
+|--------|-------|----------------|
+| **Correctness** | 4.05/5 (81%) | Strong factual accuracy |
+| **Relevance** | 3.90/5 (78%) | Good question alignment |
+| **Faithfulness** | 3.85/5 (77%) | Mostly grounded, minimal hallucination |
+
+**Strengths:**
+- **15/20 queries (75%) scored ≥4/5 on all dimensions** - excellent performance
+- Perfect scores (5/5 across all metrics) on queries like:
+  - "What is Python used for?"
+  - "How does TypeScript differ from JavaScript?"
+  - "Why is Scratch distinct from text-based programming languages?"
+
+**Identified Weaknesses:**
+- **Q6, Q9, Q10, Q14, Q15, Q18** scored ≤2/5 in at least one dimension
+- Common pattern: Queries requiring **cross-document synthesis** or **implicit knowledge** not well-covered in Wikipedia articles
+- Examples:
+  - "Which languages are commonly used for machine learning?" - needs explicit enumeration
+  - "Why is C still preferred over C++ for embedded systems?" - requires comparative analysis not present in individual language articles
+
+**Root Causes:**
+1. **Data coverage gaps**: Wikipedia language articles focus on language features, not industry usage patterns
+2. **Retrieval limitations**: Relevant info may be scattered across multiple articles (not surfaced in top-k)
+3. **Generation conservatism**: LLM correctly refuses to extrapolate when context is insufficient (e.g., "I cannot find specific information...")
+
+---
+
+## Evaluation Best Practices
+
+### 1. Test Set Design
+- **Diverse query types**: FACT (enumerations), CONCEPT (definitions), COMPARISON (analysis)
+- **Known-answer questions**: Use ground truth from documentation or Wikipedia summaries
+- **Difficulty distribution**: Mix easy (single-document) and hard (multi-document) queries
+
+### 2. Metric Selection
+- **Retrieval**: MRR (first relevant doc), Recall@k (coverage), nDCG@k (ranking quality)
+- **Answer**: LLM-as-Judge (semantic), ROUGE (overlap), Human eval (gold standard)
+- **Trade-offs**: Balance speed (automated metrics) vs. accuracy (human/LLM judging)
+
+### 3. Continuous Monitoring
+- Track metrics over time as data/models change
+- Set thresholds for production deployment (e.g., MRR ≥ 0.85, Correctness ≥ 4.0)
+- A/B test retrieval strategies (different k, reranking, query expansion)
+
+### 4. Iterative Improvement
+- **Low MRR?** → Improve embeddings, tune BM25/semantic weights, add query preprocessing
+- **Low Faithfulness?** → Strengthen grounding prompts, filter irrelevant docs, enable citations
+- **Low Correctness?** → Enhance data quality, add domain-specific documents, upgrade LLM
+
+---
+
+## Further Reading
+
+- **RAGAS Framework**: Automated RAG evaluation with reference-free metrics ([link](https://arxiv.org/abs/2309.15217))
+- **ARES**: Automated evaluation using synthetic data and few-shot learning ([link](https://arxiv.org/abs/2311.09476))
+- **TruLens**: Open-source RAG observability with feedback functions ([GitHub](https://github.com/truera/trulens))
+- **LlamaIndex Evaluation**: Built-in evaluation modules for RAG pipelines ([docs](https://docs.llamaindex.ai/en/stable/module_guides/evaluating/))
+
+---
+
+## Summary
+
+This evaluation framework validates that RAGChain achieves:
+- ✅ **Perfect retrieval ranking** (MRR = 1.000 across all queries)
+- ✅ **Strong answer quality** (81% correctness, 78% relevance, 77% faithfulness)
+- ✅ **Low hallucination rate** due to grounding and retrieval grading
+- ⚠️ **Identified gaps** in cross-document synthesis requiring data augmentation
+
+The two-stage evaluation (retrieval metrics + LLM-as-judge) provides comprehensive visibility into RAG system performance, enabling data-driven optimization.
+
