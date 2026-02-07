@@ -39,10 +39,16 @@ docker compose up -d
 # 4. Ingest documents
 uv run ragchain ingest
 
-# 5. Ask questions
+# 5a. Search for documents
+uv run ragchain search "Python programming" --k 5
+
+# 5b. Ask questions with RAG + LLM
 uv run ragchain ask "What is Python used for?"
 uv run ragchain ask "Compare Go and Rust"
 uv run ragchain ask "What are the top 10 languages?"
+
+# 6. Evaluate RAG quality
+uv run ragchain evaluate
 ```
 
 ---
