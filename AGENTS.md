@@ -43,7 +43,7 @@ src/ragchain/
   - `search()` — Ensemble retrieval using BM25 and Chroma vector search
 
 - **`ingestion/storage.py`** handles storage and ingestion:
-  - `get_embedder()` — Creates OllamaEmbeddings with `bge-m3` model for 1024-dimensional vectors with 8k context
+  - `get_embedder()` — Creates OllamaEmbeddings with `qwen3-embedding:4b` model for 2560-dimensional vectors with 4k context
   - `get_vector_store()` — Returns Chroma (local persistent or remote HTTP) with LangChain integration
   - `ingest_documents()` — Fetches documents → parses → chunks recursively → embeds → upserts to vector store
 
@@ -95,7 +95,7 @@ src/ragchain/
 
 - **LangChain ecosystem** — LangChain, LangChain-Community, LangChain-Ollama, LangChain-Chroma for unified RAG orchestration
 - **LangGraph** — `langgraph` for agentic RAG orchestration with state management and conditional routing
-- **Ollama integration** — `langchain-ollama` for embedding (`bge-m3`) and LLM generation
+- **Ollama integration** — `langchain-ollama` for embedding (`qwen3-embedding:4b`) and LLM generation (`qwen3:8b`)
 - **Vector store** — `chromadb` for semantic search (supports local persistent and remote HTTP)
 - **BM25** — `rank-bm25` for keyword-based retrieval and ensemble ranking
 - **Click** — CLI framework for data operations and queries
@@ -124,7 +124,7 @@ The following environment variables can be used to configure the RAGChain system
 **Vector Store Configuration:**
 
 - `CHROMA_PERSIST_DIRECTORY` — Directory for local Chroma persistence (default: `./chroma_data`)
-- `CHROMA_SERVER_URL` — URL for remote Chroma server (default: `http://localhost:8000`)
+- `CHROMA_SERVER_URL` — URL for remote Chroma server (default: empty string for local storage; set to `http://localhost:8000` to use remote Chroma)
 
 **Ollama Configuration:**
 
@@ -173,10 +173,10 @@ CHROMA_SERVER_URL= uv run --with-editable . pytest -m integration
 **Local development:**
 
 - `docker compose up -d` — Starts Chroma vector database
-- `ragchain ingest` — Ingest all 50 programming languages + 10 conceptual bridge pages
-- `ragchain search "Python programming"` — Search ingested documents
-- `ragchain ask "What is Python?"` — Ask questions with RAG + LLM
-- `ragchain evaluate` — Run LLM-as-judge evaluation
+- `uv run ragchain ingest` — Ingest all 50 programming languages + 10 conceptual bridge pages
+- `uv run ragchain search "Python programming"` — Search ingested documents
+- `uv run ragchain ask "What is Python?"` — Ask questions with RAG + LLM
+- `uv run ragchain evaluate` — Run LLM-as-judge evaluation
 
 **Stack components:**
 
@@ -190,6 +190,7 @@ CHROMA_SERVER_URL= uv run --with-editable . pytest -m integration
 - **Reciprocal Rank Fusion** — Principled ensemble ranking (score = 1/(rank+60)) combining BM25 keyword and semantic search
 - **Self-correcting** — Automatic query rewriting on retrieval failure (max 1 retry) with LLM-based relevance grading
 - **Performance optimized** — Parallel retrieval (ThreadPoolExecutor), retriever caching, optional grading, and fast-path routing
-- **bge-m3 model** — 1024-dimensional embeddings with 8k context window for superior semantic search (via Ollama)
+- **qwen3-embedding:4b model** — 2560-dimensional embeddings with 4k context window for semantic search (via Ollama)
 - **Flexible & composable** — Supports local/remote Chroma storage; easily swappable embedders, vector stores, and LLM models via config
 - **Deterministic testing** — Mock HTTP (aioresponses) enables testing without Ollama/Chroma servers; Docker profiles for CI/demo
+- **Local-first architecture** — Defaults to local persistent storage, no Docker required for basic usage
